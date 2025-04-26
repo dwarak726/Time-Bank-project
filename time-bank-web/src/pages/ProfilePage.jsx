@@ -1,9 +1,25 @@
-import React, { useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../contexts/AuthContext";
 import { UserCircle, Mail, Clock } from "lucide-react";
+import api from "../services/api"; // Assuming you have an API service setup
 
 export default function ProfilePage() {
   const { user } = useContext(AuthContext);
+  const [jobHistory, setJobHistory] = useState([]);
+
+  // Fetch user job history from the backend
+  useEffect(() => {
+    const fetchJobHistory = async () => {
+      try {
+        const response = await api.get(`/jobs/history/${user.id}`); // API to fetch past jobs
+        setJobHistory(response.data); // Set job history from response
+      } catch (error) {
+        console.error("Error fetching job history:", error);
+      }
+    };
+
+    fetchJobHistory();
+  }, [user.id]); // Fetch job history whenever the user ID changes
 
   return (
     <div className="max-w-3xl mx-auto my-10 p-6 bg-white rounded-2xl shadow-md">
@@ -30,12 +46,24 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Job history placeholder */}
+      {/* Job History */}
       <div className="mt-8">
         <h2 className="text-xl font-semibold text-gray-800 mb-2">📝 Past Jobs</h2>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-600 text-sm">
-          No past jobs yet.
-        </div>
+        {jobHistory.length === 0 ? (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-600 text-sm">
+            No past jobs yet.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {jobHistory.map((job) => (
+              <div key={job.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700">
+                <h3 className="font-semibold text-gray-800">{job.title}</h3>
+                <p className="text-sm">{job.description}</p>
+                <p className="text-sm text-gray-500">Completed on: {new Date(job.completed_date).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

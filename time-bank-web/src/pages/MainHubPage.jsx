@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";  // Assuming you have api setup for backend requests
 
 export default function MainHub() {
   const [tasks, setTasks] = useState([]);
@@ -9,27 +10,50 @@ export default function MainHub() {
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const nav = useNavigate();
 
-  // Example of fetching tasks from a fake API (or Firebase or other DB)
+  // Fetch tasks from backend API
   useEffect(() => {
-    const fetchedTasks = [
-      { id: 1, title: "Web Developer", description: "Build a personal portfolio website." },
-      { id: 2, title: "Graphic Designer", description: "Design a logo for a startup." },
-      { id: 3, title: "Python Developer", description: "Create a machine learning model." },
-    ];
-    setTasks(fetchedTasks);
+    const fetchTasks = async () => {
+      try {
+        const response = await api.get("/tasks/"); // Endpoint to fetch tasks
+        setTasks(response.data); // Assuming the tasks are in the response data
+      } catch (error) {
+        console.error("Error fetching tasks:", error);
+      }
+    };
+
+    fetchTasks();
   }, []);
 
-  const handlePostJob = () => {
-    // Simulate posting a new job
-    const newTask = { id: tasks.length + 1, title: newTaskTitle, description: newTaskDescription };
-    setTasks([...tasks, newTask]);
-    setShowPostJobModal(false); // Close modal after posting
+  // Post a new job to the backend
+  const handlePostJob = async () => {
+    if (!newTaskTitle || !newTaskDescription) {
+      alert("Please enter both title and description.");
+      return;
+    }
+
+    try {
+      const newTask = {
+        title: newTaskTitle,
+        description: newTaskDescription,
+      };
+
+      const response = await api.post("/tasks/", newTask); // Post the new task
+      setTasks([...tasks, response.data]); // Add the new task to state
+      setShowPostJobModal(false); // Close modal
+      setNewTaskTitle(""); // Reset input
+      setNewTaskDescription(""); // Reset input
+    } catch (error) {
+      console.error("Error posting job:", error);
+      alert("Failed to post job. Please try again.");
+    }
   };
 
+  // Search filter for tasks
   const handleSearch = (query) => {
     setSearchQuery(query);
   };
 
+  // Filter tasks based on the search query
   const filteredTasks = tasks.filter((task) =>
     task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     task.description.toLowerCase().includes(searchQuery.toLowerCase())

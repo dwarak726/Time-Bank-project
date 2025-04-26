@@ -5,10 +5,26 @@ import { Clock, ArrowRightCircle } from "lucide-react";
 
 export default function TaskListPage() {
   const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true); // For loading state
+  const [error, setError] = useState(null); // For error handling
 
   useEffect(() => {
-    api.get("/tasks/").then((res) => setTasks(res.data));
+    // Fetch tasks from API
+    api
+      .get("/tasks/")
+      .then((res) => {
+        setTasks(res.data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError("Failed to fetch tasks. Please try again.");
+        setLoading(false);
+      });
   }, []);
+
+  if (loading) return <div className="text-center">Loading tasks...</div>;
+
+  if (error) return <div className="text-center text-red-600">{error}</div>;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

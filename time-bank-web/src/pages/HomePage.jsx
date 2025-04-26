@@ -1,6 +1,22 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import api from "../services/api";  // assuming you already have the api setup
 
 export default function HomePage() {
+  const [profileData, setProfileData] = useState(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await api.get("profiles/"); // Adjust the API endpoint based on your backend
+        setProfileData(response.data);
+      } catch (error) {
+        console.error("Error fetching profile data:", error);
+      }
+    };
+    
+    fetchProfile();
+  }, []);
+
   return (
     <div className="flex items-center justify-center min-h-[70vh] animate-fade-in">
       <div className="bg-white shadow-xl rounded-2xl p-10 max-w-3xl w-full text-center border border-gray-100">
@@ -11,6 +27,11 @@ export default function HomePage() {
           Exchange your skills and time with peers in your organization. Earn tokens for every hour you give—
           and spend them on the help you need.
         </p>
+        {profileData && (
+          <div className="mt-8 text-lg">
+            <p className="text-gray-700">Your time balance: <span className="font-bold">{profileData.time_tokens} hrs</span></p>
+          </div>
+        )}
       </div>
     </div>
   );

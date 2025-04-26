@@ -3,7 +3,13 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 export default function CreateTaskPage() {
-  const [form, setForm] = useState({ title: "", description: "", token_cost: "" });
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    token_cost: "",
+    start_at: "",
+    end_at: "",
+  });
   const [error, setError] = useState("");
   const nav = useNavigate();
 
@@ -26,7 +32,9 @@ export default function CreateTaskPage() {
       {error && <p className="text-red-600 mb-4 font-medium">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+            Title
+          </label>
           <input
             name="title"
             id="title"
@@ -39,7 +47,9 @@ export default function CreateTaskPage() {
         </div>
 
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            Description
+          </label>
           <textarea
             name="description"
             id="description"
@@ -53,7 +63,9 @@ export default function CreateTaskPage() {
         </div>
 
         <div>
-          <label htmlFor="token_cost" className="block text-sm font-medium text-gray-700 mb-1">Hours Required</label>
+          <label htmlFor="token_cost" className="block text-sm font-medium text-gray-700 mb-1">
+            Hours Required
+          </label>
           <input
             name="token_cost"
             id="token_cost"
@@ -64,6 +76,36 @@ export default function CreateTaskPage() {
             onChange={handleChange}
             required
             min="1"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="start_at" className="block text-sm font-medium text-gray-700 mb-1">
+            Start Date & Time
+          </label>
+          <input
+            type="datetime-local"
+            name="start_at"
+            id="start_at"
+            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            value={form.start_at}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="end_at" className="block text-sm font-medium text-gray-700 mb-1">
+            End Date & Time
+          </label>
+          <input
+            type="datetime-local"
+            name="end_at"
+            id="end_at"
+            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            value={form.end_at}
+            onChange={handleChange}
+            required
           />
         </div>
 
