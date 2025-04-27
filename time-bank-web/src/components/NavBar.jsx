@@ -21,6 +21,12 @@ export default function NavBar() {
         <NavLink to="/" className="text-2xl font-bold text-gray-900">
           TimeBank
         </NavLink>
+        <NavLink
+  to="/commissioned"
+  className={({ isActive }) => `${base} ${isActive ? active : ""}`}
+>
+  Commissioned
+</NavLink>
 
         {/* Nav Links */}
         <div className="space-x-4 text-sm">

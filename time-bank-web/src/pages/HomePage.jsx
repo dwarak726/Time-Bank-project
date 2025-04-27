@@ -29,7 +29,7 @@ export default function HomePage() {
         </p>
         {profileData && (
           <div className="mt-8 text-lg">
-            <p className="text-gray-700">Your time balance: <span className="font-bold">{profileData.time_tokens} hrs</span></p>
+            <p className="text-gray-700">Your time balance can be viewed in profile <span className="font-bold"></span></p>
           </div>
         )}
       </div>

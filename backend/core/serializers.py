@@ -11,6 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
 # Profile Serializer
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    
     class Meta:
         model = Profile
         fields = ['user', 'time_tokens']
@@ -19,6 +20,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 class TaskSerializer(serializers.ModelSerializer):
     creator = UserSerializer(read_only=True)
     assignee = UserSerializer(read_only=True)
+
     class Meta:
         model = Task
         fields = '__all__'
@@ -47,13 +49,12 @@ class ServiceSerializer(serializers.ModelSerializer):
         model = Service
         fields = '__all__'
 
-
+# Login Serializer
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-from django.contrib.auth.models import User
-from rest_framework import serializers
 
+# Signup Serializer
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
@@ -62,9 +63,11 @@ class SignupSerializer(serializers.ModelSerializer):
         fields = ['username', 'email', 'password']
 
     def create(self, validated_data):
-        user = User.objects.create_user(
+        password = validated_data.pop('password')
+        user = User(
             username=validated_data['username'],
             email=validated_data['email'],
-            password=validated_data['password']
         )
+        user.set_password(password)  # Hash the password properly
+        user.save()
         return user

@@ -92,7 +92,7 @@ REST_FRAMEWORK = {
 }
 STATIC_URL = '/static/'
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -102,6 +102,4 @@ SIMPLE_JWT = {
     'AUDIENCE': None,
     'ISSUER': None,
     'JWK_URL': None,
-    'USER_ID_FIELD': 'email',  # Use email instead of username
-    'USER_ID_CLAIM': 'email',
 }
