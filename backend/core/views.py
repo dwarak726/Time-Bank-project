@@ -5,6 +5,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth.models import User
+from django.db import transaction
 
 from .models import Profile, Task, TimeTransaction, Dispute, Job, Service
 from .serializers import (
@@ -13,8 +14,6 @@ from .serializers import (
     ServiceSerializer, UserSerializer, LoginSerializer, SignupSerializer
 )
 
-
-# Profile ViewSet
 class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Profile.objects.select_related('user')
     serializer_class = ProfileSerializer
@@ -22,17 +21,35 @@ class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         profile = self.get_object()
+
+        user = profile.user
+
         data = ProfileSerializer(profile).data
-        data['completed_services'] = profile.user.created_tasks.filter(status='COMPLETED').count()
-        data['available_slots'] = profile.user.assigned_tasks.filter(status='OPEN').count()
+        data['completed_services'] = user.created_tasks.filter(status='COMPLETED').count()
+        data['available_slots'] = user.assigned_tasks.filter(status='OPEN').count()
+
+        # ✅ Add this line to include assigned (claimed) tasks:
+        data['assigned_task_ids'] = list(user.assigned_tasks.values_list('id', flat=True))
+
         return Response(data)
 
+# Claimed/Assigned tasks for the current user
+class AssignedTaskListView(APIView):
+    permission_classes = [IsAuthenticated]
 
-# Task ViewSet
+    def get(self, request):
+        tasks = Task.objects.filter(assignee=request.user)
+        serializer = TaskSerializer(tasks, many=True)
+        return Response(serializer.data)
+
+
 class TaskViewSet(viewsets.ModelViewSet):
-    queryset = Task.objects.all()
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # filter out any task that is already claimed or not OPEN
+        return Task.objects.filter(is_claimed=False, status='OPEN')
 
     def perform_create(self, serializer):
         serializer.save(creator=self.request.user)
@@ -138,84 +155,24 @@ class ServiceListView(APIView):
         return Response(serializer.data)
 
 
-# Claim Task View
 class ClaimTaskView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, task_id):
-        task = Task.objects.get(id=task_id)
-        if task.is_claimed:
-            return Response({"message": "Task already claimed!"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            task = Task.objects.get(id=task_id)
+        except Task.DoesNotExist:
+            return Response({"error": "Task not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        task.is_claimed = True
-        task.claimed_by = request.user
+        if task.assignee is not None or task.status != 'OPEN':
+            return Response({"error": "Task already claimed or not open."}, status=status.HTTP_400_BAD_REQUEST)
+
+        task.assignee = request.user
+        task.is_claimed = True  # Optional
+        task.status = 'ASSIGNED'
         task.save()
 
         return Response({"message": "Task claimed successfully!"}, status=status.HTTP_200_OK)
-# (Add these at the end of your current views.py)
-
-# View for listing commissioned tasks (created by current user)
-class CommissionedTaskListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        tasks = Task.objects.filter(creator=request.user)
-        serializer = TaskSerializer(tasks, many=True)
-        return Response(serializer.data)
-
-
-# View for completing a task and transferring time tokens
-class CompleteTaskTransactionView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        task_id = request.data.get('task_id')
-        receiver_id = request.data.get('receiver_id')
-        hours = request.data.get('hours')
-
-        try:
-            task = Task.objects.get(id=task_id, creator=request.user)
-
-            if task.status == 'COMPLETED':
-                return Response({"error": "Task already completed"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Mark the task as completed
-            task.status = 'COMPLETED'
-            task.save()
-
-            sender_profile = request.user.profile
-            receiver_profile = User.objects.get(id=receiver_id).profile
-
-            # Check if sender has enough time tokens
-            if sender_profile.time_tokens < hours:
-                return Response({"error": "Not enough tokens"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Transfer time tokens
-            sender_profile.time_tokens -= hours
-            receiver_profile.time_tokens += hours
-            sender_profile.save()
-            receiver_profile.save()
-
-            # Create a transaction record
-            TimeTransaction.objects.create(
-                sender=request.user,
-                receiver_id=receiver_id,
-                hours=hours,
-                task=task
-            )
-
-            return Response({"message": "Transaction successful"}, status=status.HTTP_200_OK)
-
-        except Task.DoesNotExist:
-            return Response({"error": "Task not found or you are not the creator"}, status=status.HTTP_404_NOT_FOUND)
-# core/views.py
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .models import Task, TimeTransaction
-from .serializers import TaskSerializer
-# …other imports…
 
 class CommissionedTaskListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -224,6 +181,7 @@ class CommissionedTaskListView(APIView):
         tasks = Task.objects.filter(creator=request.user)
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
+
 
 class CompleteTaskTransactionView(APIView):
     permission_classes = [IsAuthenticated]
@@ -233,7 +191,6 @@ class CompleteTaskTransactionView(APIView):
         receiver_id = request.data.get('receiver_id')
         hours       = float(request.data.get('hours', 0))
 
-        # Ensure the logged-in user is the creator
         try:
             task = Task.objects.get(id=task_id, creator=request.user)
         except Task.DoesNotExist:
@@ -242,28 +199,29 @@ class CompleteTaskTransactionView(APIView):
         if task.status == 'COMPLETED':
             return Response({"error": "Already completed"}, status=400)
 
-        # mark complete
-        task.status = 'COMPLETED'
-        task.save()
+        with transaction.atomic():
+            # mark task complete
+            task.status = 'COMPLETED'
+            task.save()
 
-        sender = request.user.profile
-        receiver = User.objects.get(id=receiver_id).profile
+            # adjust tokens
+            sender = request.user.profile
+            receiver = User.objects.get(id=receiver_id).profile
 
-        if sender.time_tokens < hours:
-            return Response({"error": "Insufficient tokens"}, status=400)
+            if sender.time_tokens < hours:
+                return Response({"error": "Insufficient tokens"}, status=400)
 
-        # transfer tokens
-        sender.time_tokens   -= hours
-        receiver.time_tokens += hours
-        sender.save()
-        receiver.save()
+            sender.time_tokens   -= hours
+            receiver.time_tokens += hours
+            sender.save()
+            receiver.save()
 
-        # record transaction
-        TimeTransaction.objects.create(
-            from_user=task.creator,
-            to_user=User.objects.get(id=receiver_id),
-            task=task,
-            amount=hours
-        )
+            # record the transaction
+            TimeTransaction.objects.create(
+                from_user=task.creator,
+                to_user=User.objects.get(id=receiver_id),
+                task=task,
+                amount=hours
+            )
 
-        return Response({"message": "Success"})
+        return Response({"message": "Success"}, status=200)

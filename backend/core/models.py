@@ -1,8 +1,4 @@
 from django.db import models
-
-# Create your models here.
-# core/models.py
-
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -83,9 +79,6 @@ class Dispute(models.Model):
         status = 'Resolved' if self.is_resolved else 'Open'
         return f"[{status}] {self.raised_by.username} on {self.task.title}"
 
-class User(models.Model):
-    name = models.CharField(max_length=100)
-    email = models.EmailField()
 
 class Service(models.Model):
     title = models.CharField(max_length=100)

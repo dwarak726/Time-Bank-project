@@ -12,6 +12,8 @@ urlpatterns = [
     path('job-history/<int:user_id>/', JobHistoryView.as_view(), name='job-history'),
     path('services/',       ServiceListView.as_view(), name='services'),
     path('claim-task/<int:task_id>/', ClaimTaskView.as_view(), name='claim-task'),
+    path('admin/', admin.site.urls),
+    path('api/complete_task_transaction/', CompleteTaskTransactionView.as_view()),
+    path('api/', include('core.urls')),  # or include your router/viewsets here
 
-    path('', include(router.urls)),  # /api/profiles/, /api/tasks/, etc.
-]
+    path('', include(router.urls)), ]
